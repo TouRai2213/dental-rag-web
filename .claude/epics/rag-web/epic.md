@@ -4,7 +4,7 @@ status: backlog
 created: 2025-08-28T05:28:44Z
 progress: 0%
 prd: .claude/prds/rag-web.md
-github: [Will be updated when synced to GitHub]
+github: https://github.com/TouRai2213/dental-rag-web/issues/1
 ---
 
 # Epic: rag-web
@@ -217,18 +217,18 @@ High-level task categories (keeping it under 10 tasks):
 - Week 10: Production ready
 
 ## Tasks Created
-- [ ] 001.md - Project Setup (parallel: true)
-- [ ] 002.md - Authentication Flow (parallel: true)
-- [ ] 003.md - Database Schema (parallel: true)
-- [ ] 004.md - Core Chat UI (parallel: true)
-- [ ] 005.md - Conversation Persistence (parallel: true)
-- [ ] 006.md - RAG Integration (parallel: true)
-- [ ] 007.md - Patient Data Module (parallel: false)
-- [ ] 008.md - Document Selection (parallel: true)
-- [ ] 009.md - Export & Reports (parallel: true)
-- [ ] 010.md - Deployment & Documentation (parallel: false)
+- [ ] #10 - Export & Reports (parallel: true)
+- [ ] #11 - Deployment & Documentation (parallel: false)
+- [ ] #2 - Project Setup (parallel: true)
+- [ ] #3 - Authentication Flow (parallel: true)
+- [ ] #4 - Database Schema (parallel: true)
+- [ ] #5 - Core Chat UI (parallel: true)
+- [ ] #6 - Conversation Persistence (parallel: true)
+- [ ] #7 - RAG Integration (parallel: true)
+- [ ] #8 - Patient Data Module (parallel: false)
+- [ ] #9 - Document Selection (parallel: true)
 
-Total tasks: 10
-Parallel tasks: 7
-Sequential tasks: 3
+Total tasks:       10
+Parallel tasks:        8
+Sequential tasks: 2
 Estimated total effort: 116-148 hours (10-12 weeks)
