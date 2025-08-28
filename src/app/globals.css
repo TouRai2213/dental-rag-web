@@ -117,6 +117,184 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+  
+  /* Smooth scrolling for better UX */
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  /* Custom scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-muted;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/30 rounded-md;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/50;
+  }
+  
+  /* Focus styles for accessibility */
+  .focus-visible {
+    @apply outline-2 outline-offset-2 outline-ring;
+  }
+  
+  /* Print styles for dental reports */
+  @media print {
+    .no-print {
+      display: none !important;
+    }
+    
+    .print-break-before {
+      page-break-before: always;
+    }
+    
+    .print-break-after {
+      page-break-after: always;
+    }
+  }
+}
+
+@layer components {
+  /* Dental brand gradient backgrounds */
+  .gradient-dental-primary {
+    background: linear-gradient(135deg, #0066CC 0%, #4A90B8 100%);
+  }
+  
+  .gradient-dental-success {
+    background: linear-gradient(135deg, #00A651 0%, #28A745 100%);
+  }
+  
+  /* Card hover effects */
+  .card-hover {
+    @apply transition-all duration-200 hover:shadow-md hover:-translate-y-1;
+  }
+  
+  /* Interactive elements */
+  .interactive-hover {
+    @apply transition-colors duration-200 hover:bg-accent hover:text-accent-foreground;
+  }
+  
+  /* Status indicators */
+  .status-dot {
+    @apply inline-block w-2 h-2 rounded-full mr-2;
+  }
+  
+  .status-dot-active {
+    @apply status-dot bg-green-500;
+  }
+  
+  .status-dot-inactive {
+    @apply status-dot bg-red-500;
+  }
+  
+  .status-dot-pending {
+    @apply status-dot bg-yellow-500;
+  }
+  
+  /* Form enhancements */
+  .form-section {
+    @apply space-y-4 p-4 bg-card rounded-lg border;
+  }
+  
+  .form-section-header {
+    @apply text-lg font-semibold text-foreground border-b pb-2 mb-4;
+  }
+  
+  /* Data table styling */
+  .data-table {
+    @apply w-full border-collapse;
+  }
+  
+  .data-table th {
+    @apply px-4 py-3 text-left text-sm font-medium text-muted-foreground border-b;
+  }
+  
+  .data-table td {
+    @apply px-4 py-3 text-sm border-b;
+  }
+  
+  .data-table tr:hover {
+    @apply bg-muted/50;
+  }
+  
+  /* Medical record number styling */
+  .mrn {
+    @apply font-mono text-sm font-medium;
+  }
+  
+  /* Patient ID styling */
+  .patient-id {
+    @apply font-mono text-xs font-medium tracking-wide uppercase;
+  }
+  
+  /* Report content styling */
+  .report-content {
+    @apply prose prose-sm max-w-none;
+    @apply prose-headings:text-foreground prose-p:text-foreground;
+    @apply prose-strong:text-foreground prose-code:text-foreground;
+  }
+  
+  .dark .report-content {
+    @apply prose-invert;
+  }
+  
+  /* Loading states */
+  .skeleton {
+    @apply animate-pulse bg-muted rounded;
+  }
+  
+  /* Dental specific layouts */
+  .sidebar-layout {
+    @apply grid grid-cols-[240px_1fr] min-h-screen;
+  }
+  
+  .main-content {
+    @apply flex-1 overflow-auto;
+  }
+  
+  /* Image viewer enhancements for X-rays */
+  .xray-viewer {
+    @apply bg-black rounded-lg overflow-hidden;
+  }
+  
+  .xray-image {
+    @apply w-full h-auto object-contain;
+    filter: brightness(1.1) contrast(1.1);
+  }
+  
+  /* Chat interface styling */
+  .chat-container {
+    @apply flex flex-col h-full;
+  }
+  
+  .chat-messages {
+    @apply flex-1 overflow-y-auto p-4 space-y-4;
+  }
+  
+  .chat-input-area {
+    @apply border-t p-4 bg-background;
+  }
+  
+  /* Animation utilities */
+  .fade-in {
+    @apply animate-fade-in;
+  }
+  
+  .slide-up {
+    @apply animate-slide-up;
+  }
+  
+  .pulse-slow {
+    @apply animate-pulse-slow;
   }
 }
