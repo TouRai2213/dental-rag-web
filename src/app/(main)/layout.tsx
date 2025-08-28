@@ -1,18 +1,17 @@
 "use client"
 
-import { useSession, signOut } from "next-auth/react"
-import { Button } from "@/components/ui/button"
+import { useAuth } from "@/hooks/use-auth"
 import { LoadingSpinner } from "@/components/loading-spinner"
-import { User, LogOut } from "lucide-react"
+import { UserMenu } from "@/components/user-menu"
 
 export default function MainLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const { data: session, status } = useSession()
+  const { isLoading } = useAuth()
 
-  if (status === "loading") {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <LoadingSpinner className="h-8 w-8" />
@@ -27,22 +26,7 @@ export default function MainLayout({
         <div className="flex items-center justify-between">
           <h1 className="text-xl font-semibold">Dental RAG System</h1>
           <div className="flex items-center space-x-4">
-            {session?.user && (
-              <div className="flex items-center space-x-2">
-                <User className="h-4 w-4" />
-                <span className="text-sm text-gray-600">
-                  {session.user.name} ({session.user.role})
-                </span>
-              </div>
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => signOut({ callbackUrl: "/login" })}
-            >
-              <LogOut className="h-4 w-4 mr-2" />
-              Sign Out
-            </Button>
+            <UserMenu />
           </div>
         </div>
       </header>
