@@ -92,8 +92,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     async jwt({ token, user }) {
       // Add role to JWT token when user signs in
-      if (user) {
-        token.role = user.role
+      if (user && 'role' in user) {
+        token.role = user.role as string
       }
       return token
     },

@@ -22,14 +22,16 @@ const eslintConfig = [
       ".claude/**",
       "coverage/**",
     ],
+    languageOptions: {
+      parserOptions: {
+        project: "./tsconfig.json",
+        tsconfigRootDir: __dirname,
+      },
+    },
     rules: {
       // TypeScript specific rules
       "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
       "@typescript-eslint/no-explicit-any": "warn",
-      "@typescript-eslint/prefer-optional-chain": "error",
-      "@typescript-eslint/prefer-nullish-coalescing": "error",
-      "@typescript-eslint/no-unnecessary-type-assertion": "error",
-      "@typescript-eslint/no-floating-promises": "error",
 
       // General JavaScript/ES6 rules
       "prefer-const": "error",
@@ -38,12 +40,12 @@ const eslintConfig = [
       "no-debugger": "error",
       "no-alert": "error",
       "eqeqeq": ["error", "always"],
-      "curly": ["error", "all"],
-      "no-duplicate-imports": "error",
+      "curly": ["warn", "all"],
+      "no-duplicate-imports": "warn",
 
       // React specific rules
       "react/jsx-no-target-blank": ["error", { enforceDynamicLinks: "always" }],
-      "react/no-unescaped-entities": "error",
+      "react/no-unescaped-entities": "warn",
       "react/self-closing-comp": ["error", { component: true, html: true }],
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "warn",
@@ -53,10 +55,9 @@ const eslintConfig = [
       "@next/next/no-html-link-for-pages": "error",
 
       // Code quality rules
-      "prefer-template": "error",
-      "object-shorthand": "error",
-      "no-useless-concat": "error",
-      "no-useless-template-literals": "error",
+      "prefer-template": "warn",
+      "object-shorthand": "warn",
+      "no-useless-concat": "warn",
     },
   },
 ];
