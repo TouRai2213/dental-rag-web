@@ -190,15 +190,15 @@
   }
   
   .status-dot-active {
-    @apply status-dot bg-green-500;
+    @apply inline-block w-2 h-2 rounded-full mr-2 bg-green-500;
   }
   
   .status-dot-inactive {
-    @apply status-dot bg-red-500;
+    @apply inline-block w-2 h-2 rounded-full mr-2 bg-red-500;
   }
   
   .status-dot-pending {
-    @apply status-dot bg-yellow-500;
+    @apply inline-block w-2 h-2 rounded-full mr-2 bg-yellow-500;
   }
   
   /* Form enhancements */
@@ -239,13 +239,28 @@
   
   /* Report content styling */
   .report-content {
-    @apply prose prose-sm max-w-none;
-    @apply prose-headings:text-foreground prose-p:text-foreground;
-    @apply prose-strong:text-foreground prose-code:text-foreground;
+    @apply max-w-none text-sm leading-relaxed;
   }
   
-  .dark .report-content {
-    @apply prose-invert;
+  .report-content h1,
+  .report-content h2,
+  .report-content h3,
+  .report-content h4,
+  .report-content h5,
+  .report-content h6 {
+    @apply text-foreground font-semibold mb-2;
+  }
+  
+  .report-content p {
+    @apply text-foreground mb-3;
+  }
+  
+  .report-content strong {
+    @apply text-foreground font-medium;
+  }
+  
+  .report-content code {
+    @apply text-foreground bg-muted px-1 py-0.5 rounded text-xs;
   }
   
   /* Loading states */
@@ -287,14 +302,14 @@
   
   /* Animation utilities */
   .fade-in {
-    @apply animate-fade-in;
+    animation: fade-in 0.3s ease-out;
   }
   
   .slide-up {
-    @apply animate-slide-up;
+    animation: slide-up 0.3s ease-out;
   }
   
   .pulse-slow {
-    @apply animate-pulse-slow;
+    animation: pulse-slow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
 }
