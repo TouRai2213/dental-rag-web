@@ -122,9 +122,13 @@ class ApiClient {
 
     // Build headers
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
       ...options.headers,
     };
+
+    // Only set Content-Type for non-FormData bodies
+    if (!(body instanceof FormData)) {
+      headers['Content-Type'] = 'application/json';
+    }
 
     // Add authentication headers if required
     if (requireAuth) {
@@ -140,7 +144,11 @@ class ApiClient {
 
     // Add body for non-GET requests
     if (body && method !== 'GET') {
-      requestConfig.body = typeof body === 'string' ? body : JSON.stringify(body);
+      if (body instanceof FormData) {
+        requestConfig.body = body;
+      } else {
+        requestConfig.body = typeof body === 'string' ? body : JSON.stringify(body);
+      }
     }
 
     try {

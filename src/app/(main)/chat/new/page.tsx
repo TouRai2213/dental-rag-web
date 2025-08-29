@@ -1,10 +1,18 @@
+/**
+ * New Chat Page
+ * Full-screen chat interface for new conversations
+ */
+
+'use client';
+
+import { ChatInterface } from '@/components/chat/chat-interface';
+
 export default function NewChatPage() {
   return (
-    <div className="container mx-auto py-8">
-      <h1 className="text-2xl font-bold mb-4">New Conversation</h1>
-      <p className="text-muted-foreground">
-        Chat interface will be implemented in Task #5
-      </p>
+    <div className="h-[calc(100vh-4rem)] flex flex-col">
+      <div className="flex-1 min-h-0">
+        <ChatInterface />
+      </div>
     </div>
-  )
+  );
 }

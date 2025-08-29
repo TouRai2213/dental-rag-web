@@ -17,6 +17,13 @@ import type {
   UpdateChatMessageResponse,
   DeleteConversationRequest,
   DeleteConversationResponse,
+  IntelligentChatRequest,
+  IntelligentChatResponse,
+  RagChatAnalyzeRequest,
+  RagChatAnalyzeResponse,
+  ExcelUploadRequest,
+  ExcelUploadResponse,
+  LiteratureDetailResponse,
 } from '@/types/conversation';
 
 /**
@@ -27,6 +34,12 @@ const ENDPOINTS = {
   conversation: (sessionId: string) => `/api/conversations/${sessionId}`,
   messages: '/api/conversations/messages',
   message: (messageId: number) => `/api/conversations/messages/${messageId}`,
+  // RAG Chat API endpoints (production backend)
+  intelligentChat: '/api/chat/intelligent',
+  ragChatAnalyze: '/api/chat/analyze',
+  uploadExcel: '/api/chat/upload-excel',
+  literatureDetail: (documentId: string) => `/api/literature/detail/${documentId}`,
+  literaturePdf: (documentId: string) => `/api/literature/pdf/${documentId}`,
 } as const;
 
 /**
@@ -149,6 +162,93 @@ export class ConversationApi {
     totalTokens: number;
   }> {
     return await apiClient.get('/api/conversations/stats');
+  }
+
+  /**
+   * RAG Chat API Methods
+   * These methods interact with the production RAG backend
+   */
+
+  /**
+   * Send a message for intelligent chat using GPT-5 with Function Calling
+   * Uses the intelligent endpoint for normal conversations
+   */
+  async intelligentChat(request: IntelligentChatRequest): Promise<IntelligentChatResponse> {
+    return await apiClient.post<IntelligentChatResponse>(
+      ENDPOINTS.intelligentChat,
+      request
+    );
+  }
+
+  /**
+   * Send a message for cephalometric analysis using the RAG system
+   * Main endpoint for dental analysis chat
+   */
+  async analyzeWithRag(request: RagChatAnalyzeRequest): Promise<RagChatAnalyzeResponse> {
+    return await apiClient.post<RagChatAnalyzeResponse>(
+      ENDPOINTS.ragChatAnalyze,
+      request
+    );
+  }
+
+  /**
+   * Upload Excel file with patient cephalometric data
+   * Processes Polygon worksheet format for measurements
+   */
+  async uploadExcelPatientData(file: File): Promise<ExcelUploadResponse> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    // Use custom request to handle FormData (don't set Content-Type header)
+    return await apiClient.request<ExcelUploadResponse>(
+      ENDPOINTS.uploadExcel,
+      {
+        method: 'POST',
+        body: formData,
+        headers: {}, // Let browser set Content-Type for multipart/form-data
+      }
+    );
+  }
+
+  /**
+   * Get detailed information about a literature reference
+   */
+  async getLiteratureDetail(documentId: string): Promise<LiteratureDetailResponse> {
+    return await apiClient.get<LiteratureDetailResponse>(
+      ENDPOINTS.literatureDetail(documentId)
+    );
+  }
+
+  /**
+   * Get PDF download URL for a literature reference
+   * Returns the URL for downloading the PDF document
+   */
+  getLiteraturePdfUrl(documentId: string): string {
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    return `${cleanBaseUrl}${ENDPOINTS.literaturePdf(documentId)}`;
+  }
+
+  /**
+   * Convenience method: Send analysis request with patient data
+   * Combines Excel processing with RAG analysis in typical workflow
+   */
+  async analyzePatientData(
+    message: string,
+    patientData: any,
+    analysisType: 'comprehensive' | 'osa_risk' | 'orthodontic' = 'comprehensive',
+    conversationId?: string
+  ): Promise<RagChatAnalyzeResponse> {
+    const request: RagChatAnalyzeRequest = {
+      message,
+      conversation_id: conversationId,
+      analysis_type: analysisType,
+      include_meta_analysis: true,
+      include_rag_search: true,
+      patient_data: patientData,
+    };
+
+    return await this.analyzeWithRag(request);
   }
 }
 

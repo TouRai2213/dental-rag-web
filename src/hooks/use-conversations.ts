@@ -29,6 +29,8 @@ export function useConversations(): UseConversationsReturn {
     currentConversation: false,
     sendingMessage: false,
     deletingConversation: false,
+    uploadingExcel: false,
+    analyzingMessage: false,
   });
   const [error, setError] = useState<ConversationError | null>(null);
 

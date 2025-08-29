@@ -45,7 +45,16 @@
     "deps:update": "npx npm-check-updates -u",
     "deps:audit": "npm audit && npm audit signatures",
     "lighthouse": "lighthouse http://localhost:3000 --output=html --output-path=./lighthouse-report.html",
-    "release": "semantic-release"
+    "release": "semantic-release",
+    "backend:install": "cd backend && pip install -r requirements.txt",
+    "backend:dev": "cd backend && python main.py",
+    "backend:start": "cd backend && uvicorn main:app --host 0.0.0.0 --port 8000",
+    "backend:reload": "cd backend && uvicorn main:app --host 0.0.0.0 --port 8000 --reload",
+    "backend:test": "cd backend && pytest",
+    "backend:init-db": "cd backend && python -c 'from database import init_database; init_database()'",
+    "backend:health": "curl -s http://localhost:8000/health | python -m json.tool",
+    "dev:full": "concurrently \"npm run dev\" \"npm run backend:reload\"",
+    "clean:backend": "cd backend && find . -name '*.pyc' -delete && find . -name '__pycache__' -delete"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.1",
@@ -62,6 +71,7 @@
     "react-dom": "19.1.0",
     "react-hook-form": "^7.62.0",
     "tailwind-merge": "^3.3.1",
+    "xlsx": "^0.18.5",
     "zod": "^4.1.4"
   },
   "devDependencies": {
@@ -70,6 +80,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/xlsx": "^0.0.35",
     "@typescript-eslint/eslint-plugin": "^8.41.0",
     "@typescript-eslint/parser": "^8.41.0",
     "eslint": "^9",

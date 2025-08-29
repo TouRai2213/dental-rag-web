@@ -138,6 +138,97 @@ export interface DeleteConversationResponse {
 }
 
 /**
+ * RAG Chat API Types
+ * Types for the dental cephalometric analysis chat endpoints
+ */
+
+// Analysis types supported by the backend
+export type AnalysisType = 'comprehensive' | 'osa_risk' | 'orthodontic';
+
+// Intelligent chat request (matches backend POST /api/chat/intelligent)
+export interface IntelligentChatRequest {
+  message: string;
+  conversation_id?: string;
+  patient_data?: PatientData | null;
+  previous_response_id?: string;
+}
+
+// Intelligent chat response
+export interface IntelligentChatResponse {
+  conversation_id: string;
+  response: string;
+  literature_references?: LiteratureReference[];
+}
+
+// Patient demographic data
+export interface PatientData {
+  name?: string;
+  age?: number;
+  gender?: 'male' | 'female';
+  ethnicity?: string;
+  measurements?: Record<string, number>;
+  clinical_significance?: Record<string, string>;
+}
+
+// RAG chat analyze request (matches backend POST /api/chat/analyze)
+export interface RagChatAnalyzeRequest {
+  message: string;
+  conversation_id?: string;
+  analysis_type: AnalysisType;
+  include_meta_analysis: boolean;
+  include_rag_search: boolean;
+  patient_data?: PatientData;
+}
+
+// RAG chat analyze response
+export interface RagChatAnalyzeResponse {
+  conversation_id: string;
+  response: string;
+  meta_analysis_results?: any[];
+  literature_references?: LiteratureReference[];
+}
+
+// Literature reference structure
+export interface LiteratureReference {
+  id: string;
+  title: string;
+  authors: string;
+  journal: string;
+  year: number;
+  doi?: string;
+  pmid?: string;
+  relevance_score?: number;
+  excerpt?: string;
+}
+
+// Excel upload request
+export interface ExcelUploadRequest {
+  file: File;
+}
+
+// Excel upload response
+export interface ExcelUploadResponse {
+  success: boolean;
+  patient_data: PatientData;
+  message: string;
+}
+
+// Literature detail response
+export interface LiteratureDetailResponse {
+  id: string;
+  title: string;
+  authors: string;
+  journal: string;
+  year: number;
+  abstract?: string;
+  full_text?: string;
+  doi?: string;
+  pmid?: string;
+  keywords?: string[];
+  categories?: string[];
+}
+
+/**
  * Frontend-specific interfaces
  */
 
@@ -147,6 +238,8 @@ export interface ConversationLoadingState {
   currentConversation: boolean;
   sendingMessage: boolean;
   deletingConversation: boolean;
+  uploadingExcel: boolean;
+  analyzingMessage: boolean;
 }
 
 // Error states
