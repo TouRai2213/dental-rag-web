@@ -5,7 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 
-const LOCAL_BACKEND_URL = process.env.LOCAL_BACKEND_URL || 'http://localhost:8000';
+const LOCAL_BACKEND_URL = process.env.LOCAL_BACKEND_URL || 'http://localhost:8002';
 
 export async function GET(request: NextRequest) {
   try {

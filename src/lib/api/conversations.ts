@@ -235,7 +235,7 @@ export class ConversationApi {
    * Returns the URL for downloading the PDF document
    */
   getLiteraturePdfUrl(documentId: string): string {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     return `${cleanBaseUrl}${ENDPOINTS.literaturePdf(documentId)}`;
   }

@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 
 // Local backend URL for conversation storage
-const LOCAL_BACKEND_URL = process.env.LOCAL_BACKEND_URL || 'http://localhost:8000';
+const LOCAL_BACKEND_URL = process.env.LOCAL_BACKEND_URL || 'http://localhost:8002';
 
 /**
  * GET /api/conversations
