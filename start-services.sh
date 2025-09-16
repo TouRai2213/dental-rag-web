@@ -57,16 +57,25 @@ kill_port() {
 start_backend() {
     echo -e "${BLUE}🔧 Starting Backend Service (Port 8002)...${NC}"
 
-    # Check if Python virtual environment exists
-    if [ ! -d "./backend/venv" ] && [ ! -f "./backend/requirements.txt" ]; then
-        echo -e "${RED}❌ Backend requirements not found${NC}"
+    # Use the dental_rag virtual environment
+    local venv_python="/home/tourai2213/dental_rag/venv/bin/python"
+
+    # Check if virtual environment Python exists
+    if [ ! -f "$venv_python" ]; then
+        echo -e "${RED}❌ Virtual environment Python not found at: $venv_python${NC}"
         return 1
     fi
 
-    # Start backend in background
+    # Check if backend requirements exist
+    if [ ! -f "./backend/requirements.txt" ]; then
+        echo -e "${RED}❌ Backend requirements.txt not found${NC}"
+        return 1
+    fi
+
+    # Start backend in background using virtual environment Python
     cd backend
-    echo "Starting backend server..."
-    nohup python main.py > ../logs/backend.log 2>&1 &
+    echo "Starting backend server with virtual environment Python..."
+    nohup "$venv_python" main.py > ../logs/backend.log 2>&1 &
     BACKEND_PID=$!
     cd ..
 
