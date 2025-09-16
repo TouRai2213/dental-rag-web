@@ -33,8 +33,9 @@ async function getCachedSession(): Promise<any> {
 
 /**
  * API configuration
+ * Use local URLs when running in production on same server
  */
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8002';
+const API_BASE_URL = 'http://localhost:8000';
 
 /**
  * Standard API error response format
@@ -256,8 +257,8 @@ class ApiClient {
 export const apiClient = new ApiClient();
 
 // Export local client instance for Next.js API routes (conversation management)
-// Use a fixed URL to avoid window object issues and infinite loops
-export const localApiClient = new ApiClient('http://localhost:3000');
+// Use epic-rag-web backend for conversation management
+export const localApiClient = new ApiClient('http://localhost:8002');
 
 // Export class for testing or custom instances
 export { ApiClient };
