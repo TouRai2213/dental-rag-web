@@ -53,7 +53,7 @@ export async function GET(
 
     // Process messages to restore literature references from response_data
     const processedMessages = (messages || []).map((message: any) => {
-      let enhancedMessage = { ...message };
+      const enhancedMessage = { ...message };
 
       // Parse response_data to restore literature references and other metadata
       if (message.response_data) {
