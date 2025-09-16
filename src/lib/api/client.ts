@@ -33,9 +33,9 @@ async function getCachedSession(): Promise<any> {
 
 /**
  * API configuration
- * Use local URLs when running in production on same server
+ * Use nginx proxy for both frontend and API calls to avoid mixed content issues
  */
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8000';
 
 /**
  * Standard API error response format
@@ -257,8 +257,8 @@ class ApiClient {
 export const apiClient = new ApiClient();
 
 // Export local client instance for Next.js API routes (conversation management)
-// Use epic-rag-web backend for conversation management
-export const localApiClient = new ApiClient('http://localhost:8002');
+// Use same origin to avoid mixed content issues
+export const localApiClient = new ApiClient(typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8002');
 
 // Export class for testing or custom instances
 export { ApiClient };
