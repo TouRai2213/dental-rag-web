@@ -42,8 +42,8 @@ export async function GET(request: NextRequest) {
     const debug_info = {
       total_messages: messages.length,
       messages_with_response_data: 0,
-      literature_references: [],
-      raw_response_data_samples: []
+      literature_references: [] as any[],
+      raw_response_data_samples: [] as any[]
     };
 
     for (const message of messages) {
