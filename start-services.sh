@@ -105,7 +105,7 @@ start_frontend() {
 
     # Start frontend in background
     echo "Starting frontend server..."
-    nohup npm run start > ./logs/frontend.log 2>&1 &
+    nohup npm run dev > ./logs/frontend.log 2>&1 &
     FRONTEND_PID=$!
 
     echo "Frontend PID: $FRONTEND_PID"
