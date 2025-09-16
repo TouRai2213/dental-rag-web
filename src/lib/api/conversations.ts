@@ -65,6 +65,7 @@ export class ConversationApi {
     }
 
     const queryParams = new URLSearchParams();
+    queryParams.append('account_id', accountId);
     if (params.limit) queryParams.append('limit', params.limit.toString());
     if (params.offset) queryParams.append('offset', params.offset.toString());
 
