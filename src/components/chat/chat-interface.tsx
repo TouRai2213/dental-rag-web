@@ -15,30 +15,17 @@ import { PatientDataUpload } from './patient-data-upload';
 import { MetaAnalysisResults } from './meta-analysis-results';
 import { LiteratureReferences } from './literature-references';
 import { conversationApi } from '@/lib/api/conversations';
+import { localApiClient } from '@/lib/api/client';
 import { usePatientData } from '@/hooks/use-patient-data';
 import type { 
   ChatMessage,
+  RagChatAnalyzeRequest,
   RagChatAnalyzeResponse,
   IntelligentChatResponse,
   AnalysisType,
   LiteratureReference
 } from '@/types/conversation';
 
-/**
- * Helper function to determine if a message requires cephalometric analysis
- * Returns true if the message appears to be asking for analysis, report generation, or clinical assessment
- */
-function isAnalysisRequest(message: string): boolean {
-  const analysisKeywords = [
-    'analysis', 'analyze', 'assessment', 'evaluate', 'report', 
-    'cephalometric', 'measurement', 'orthodontic', 'OSA', 'risk',
-    'comprehensive', 'clinical', 'diagnosis', 'treatment',
-    '分析', '評価', '診断', '治療', '測定'
-  ];
-  
-  const lowerMessage = message.toLowerCase();
-  return analysisKeywords.some(keyword => lowerMessage.includes(keyword));
-}
 
 interface ChatInterfaceProps {
   conversationId?: string;
@@ -61,6 +48,9 @@ export function ChatInterface({ conversationId, className = '' }: ChatInterfaceP
   const [chatState, setChatState] = useState<ChatState>('idle');
   const [analysisType, setAnalysisType] = useState<AnalysisType>('comprehensive');
 
+  // Research mode state
+  const [useResearch, setUseResearch] = useState(false);
+
   // Patient data hook
   const { 
     patientData, 
@@ -74,20 +64,10 @@ export function ChatInterface({ conversationId, className = '' }: ChatInterfaceP
     clearError: clearPatientDataError, 
     preview 
   } = usePatientData();
-  console.log('[ChatInterface] Current hook state:', { hasPatientData, patientName: patientData?.name });
 
   // Auto-start analysis when patient data is loaded
   const [hasTriggeredAutoAnalysis, setHasTriggeredAutoAnalysis] = useState(false);
 
-  // Debug: Track hasPatientData changes in chat interface
-  useEffect(() => {
-    console.log('[ChatInterface] hasPatientData changed:', {
-      hasPatientData,
-      patientData: patientData?.name,
-      chatState,
-      hasTriggeredAutoAnalysis
-    });
-  }, [hasPatientData, patientData, chatState, hasTriggeredAutoAnalysis]);
 
   // Auto-advance states based on patient data
   useEffect(() => {
@@ -101,7 +81,7 @@ export function ChatInterface({ conversationId, className = '' }: ChatInterfaceP
   /**
    * Send a message and get AI response
    */
-  const handleSendMessage = useCallback(async (message: string) => {
+  const handleSendMessage = useCallback(async (message: string, useResearchMode?: boolean) => {
     console.log('handleSendMessage called with:', message);
     console.log('Current state:', { hasPatientData, patientData, currentConversationId });
     
@@ -125,35 +105,18 @@ export function ChatInterface({ conversationId, className = '' }: ChatInterfaceP
 
       setMessages(prev => [...prev, userMessage]);
 
-      // Determine if this should be intelligent chat or analysis
-      const needsAnalysis = hasPatientData && isAnalysisRequest(message);
-      
-      let response: RagChatAnalyzeResponse | IntelligentChatResponse;
-      
-      if (needsAnalysis) {
-        // Use analysis endpoint for cephalometric analysis with patient data
-        const analysisPayload = {
-          message,
-          conversation_id: currentConversationId,
-          analysis_type: analysisType,
-          include_meta_analysis: true,
-          include_rag_search: true,
-          patient_data: patientData || undefined,
-        };
-        console.log('Calling conversationApi.analyzeWithRag with payload:', analysisPayload);
-        response = await conversationApi.analyzeWithRag(analysisPayload);
-      } else {
-        // Use intelligent chat for normal conversations
-        const intelligentPayload = {
-          message,
-          conversation_id: currentConversationId,
-          patient_data: hasPatientData ? patientData : null,
-        };
-        console.log('Calling conversationApi.intelligentChat with payload:', intelligentPayload);
-        response = await conversationApi.intelligentChat(intelligentPayload);
-      }
+      // Always use intelligent chat for text input - let GPT-5 decide what tools to use
+      const intelligentPayload = {
+        message,
+        conversation_id: currentConversationId,
+        patient_data: hasPatientData ? patientData : null,
+        use_research: useResearchMode ?? useResearch, // Use the passed parameter or default state
+      };
+      console.log('Calling conversationApi.intelligentChat with payload:', intelligentPayload);
+      const response = await conversationApi.intelligentChat(intelligentPayload);
       
       console.log('Received response from API:', response);
+      console.log('Response conversation_id:', response.conversation_id);
 
       // Update conversation ID if new
       if (!currentConversationId) {
@@ -166,7 +129,7 @@ export function ChatInterface({ conversationId, className = '' }: ChatInterfaceP
         user_message: message,
         ai_response: response.response,
         created_at: new Date().toISOString(),
-        meta_analysis_results: needsAnalysis ? (response as RagChatAnalyzeResponse).meta_analysis_results : undefined,
+        meta_analysis_results: (response as any).meta_analysis_results, // May exist if GPT-5 used generate_report tool
         literature_references: response.literature_references,
       };
 
@@ -176,6 +139,30 @@ export function ChatInterface({ conversationId, className = '' }: ChatInterfaceP
         newMessages[newMessages.length - 1] = aiMessage;
         return newMessages;
       });
+
+      // Save conversation to local database for sidebar
+      console.log('About to save conversation to local database...');
+      try {
+        const savePayload = {
+          session_id: response.conversation_id,
+          user_message: message,
+          ai_response: response.response,
+          patient_data: hasPatientData ? patientData : null,
+          response_data: JSON.stringify({
+            literature_references: response.literature_references,
+            meta_analysis_results: response.meta_analysis_results,
+            evidence_data: response.evidence_data,
+            citations: response.citations
+          }),
+        };
+        console.log('Save payload:', savePayload);
+        
+        const saveResult = await localApiClient.post('/api/conversations', savePayload);
+        console.log('Conversation saved to local database successfully:', saveResult);
+      } catch (saveError) {
+        console.error('Failed to save conversation to local database:', saveError);
+        // Don't fail the entire operation if saving fails
+      }
 
       setChatState('chatting');
     } catch (err) {
@@ -207,6 +194,100 @@ export function ChatInterface({ conversationId, className = '' }: ChatInterfaceP
   }, [hasPatientData]);
 
   /**
+   * Generate comprehensive analysis report using analyze endpoint
+   */
+  const handleGenerateReport = useCallback(async () => {
+    if (!hasPatientData || !patientData) {
+      console.log('No patient data available for report generation');
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    setChatState('analyzing');
+
+    try {
+      // Create user message for UI
+      const reportRequestMessage: EnhancedChatMessage = {
+        id: Date.now(),
+        user_message: "患者データの包括的な頭影測定分析レポートを生成中...",
+        ai_response: '',
+        created_at: new Date().toISOString(),
+      };
+
+      setMessages(prev => [...prev, reportRequestMessage]);
+
+      // Call analyze endpoint for comprehensive report
+      const analyzePayload: RagChatAnalyzeRequest = {
+        message: "包括的な頭影測定分析レポートを生成してください",
+        conversation_id: currentConversationId,
+        patient_data: patientData,
+        analysis_type: 'comprehensive' as AnalysisType,
+        include_meta_analysis: true,
+        include_rag_search: true,
+      };
+      
+      console.log('Calling conversationApi.analyzeWithRag with payload:', analyzePayload);
+      const response = await conversationApi.analyzeWithRag(analyzePayload);
+      
+      console.log('Received analysis response from API:', response);
+
+      // Update conversation ID if new
+      if (!currentConversationId) {
+        setCurrentConversationId(response.conversation_id);
+      }
+
+      // Create response message with analysis results
+      const analysisMessage: EnhancedChatMessage = {
+        id: Date.now() + 1,
+        user_message: "患者データの包括的な頭影測定分析レポートを生成",
+        ai_response: response.response,
+        created_at: new Date().toISOString(),
+        meta_analysis_results: response.meta_analysis_results,
+        literature_references: response.literature_references,
+      };
+
+      // Replace the loading message with the complete analysis
+      setMessages(prev => {
+        const newMessages = [...prev];
+        newMessages[newMessages.length - 1] = analysisMessage;
+        return newMessages;
+      });
+
+      // Save conversation to local database for sidebar
+      try {
+        const savePayload = {
+          session_id: response.conversation_id,
+          user_message: "包括的な頭影測定分析レポートを生成してください",
+          ai_response: response.response,
+          patient_data: patientData,
+          response_data: JSON.stringify({
+            literature_references: response.literature_references,
+            meta_analysis_results: response.meta_analysis_results,
+            evidence_data: response.evidence_data,
+            citations: response.citations
+          }),
+        };
+
+        const saveResult = await localApiClient.post('/api/conversations', savePayload);
+        console.log('Analysis report saved to local database successfully:', saveResult);
+      } catch (saveError) {
+        console.error('Failed to save analysis report to local database:', saveError);
+      }
+
+      setChatState('chatting');
+    } catch (err) {
+      console.error('Failed to generate analysis report:', err);
+      setError(err instanceof Error ? err.message : 'Failed to generate analysis report');
+      
+      // Remove the failed message
+      setMessages(prev => prev.slice(0, -1));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentConversationId]);
+
+  /**
    * Auto-start analysis when patient data is loaded
    */
   useEffect(() => {
@@ -223,21 +304,18 @@ export function ChatInterface({ conversationId, className = '' }: ChatInterfaceP
       console.log('Triggering auto-analysis...');
       setHasTriggeredAutoAnalysis(true);
       
-      // Auto-start comprehensive analysis after patient data is loaded
-      const autoStartMessage = "Please generate a comprehensive cephalometric analysis report for this patient, including meta-analysis comparison and clinical recommendations.";
-      
       // Change state to chatting if needed
       if (chatState === 'idle' || chatState === 'patient_data') {
         setChatState('chatting');
       }
       
-      // Call directly without setTimeout to avoid race conditions
-      console.log('Sending auto-analysis message...', autoStartMessage);
-      handleSendMessage(autoStartMessage).catch(err => {
-        console.error('Auto-analysis message failed:', err);
+      // Use analyze endpoint for patient data report generation
+      console.log('Generating comprehensive analysis report...');
+      handleGenerateReport().catch(err => {
+        console.error('Auto-analysis report generation failed:', err);
       });
     }
-  }, [hasPatientData, hasTriggeredAutoAnalysis, isLoading, chatState, handleSendMessage, patientData]);
+  }, [hasPatientData, hasTriggeredAutoAnalysis, isLoading, chatState]);
   
   // Reset auto-trigger flag when patient data is cleared
   useEffect(() => {
@@ -247,69 +325,108 @@ export function ChatInterface({ conversationId, className = '' }: ChatInterfaceP
   }, [hasPatientData]);
 
   /**
+   * Check if conversation has started (has any messages)
+   */
+  const hasStartedConversation = messages.length > 0;
+
+  /**
    * Render current state UI
    */
   const renderCurrentState = () => {
-    switch (chatState) {
-      case 'idle':
-      case 'patient_data':
-        return (
-          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-            <div className="max-w-md space-y-4">
-              <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center mx-auto">
-                <Brain className="w-8 h-8 text-blue-600" />
-              </div>
-              
-              <div>
-                <h2 className="text-xl font-semibold mb-2">
-                  Dental Cephalometric Analysis
-                </h2>
-                <p className="text-gray-600 dark:text-gray-400">
-                  {hasPatientData 
-                    ? "Patient data loaded. Ask me about the cephalometric analysis, OSA risk assessment, or orthodontic recommendations."
-                    : "Upload patient cephalometric data or start a conversation to begin analysis."
-                  }
-                </p>
-              </div>
-
-              {hasPatientData && (
-                <div className="flex items-center justify-center space-x-2 text-sm text-green-600 bg-green-50 dark:bg-green-950/20 px-3 py-2 rounded-lg">
-                  <FileSpreadsheet className="w-4 h-4" />
-                  <span>Patient data ready</span>
-                </div>
-              )}
-            </div>
-          </div>
-        );
-
-      case 'chatting':
-      case 'analyzing':
-        return (
-          <div className="flex-1 flex flex-col min-h-0">
-            <MessageList 
-              messages={messages}
-              isLoading={isLoading}
-              className="flex-1"
+    // If no messages exist, show welcome/initial state (like ChatGPT)
+    if (!hasStartedConversation) {
+      return (
+        <div className="flex-1 flex flex-col items-center justify-center p-8" style={{paddingBottom: '200px'}}>
+          {/* Animated demo area */}
+          <div className="w-full max-w-4xl mb-8 flex justify-center">
+            <iframe
+              src="/animation.html"
+              className="w-full max-w-3xl rounded-lg shadow-lg border border-gray-200 dark:border-gray-700"
+              style={{height: '250px'}}
+              title="Dental RAG System Demo"
+              frameBorder="0"
             />
           </div>
-        );
 
-      default:
-        return null;
+          {/* Action buttons matching design */}
+          <div className="flex items-center gap-6 mb-8">
+            <Button 
+              variant="outline"
+              size="lg"
+              className="px-8 py-6 text-base h-auto rounded-lg border-2 hover:bg-gray-50 dark:hover:bg-gray-800"
+              onClick={() => {
+                // Trigger patient data upload
+                (document.querySelector('input[type="file"]') as HTMLInputElement)?.click();
+              }}
+            >
+              📄 患者セファロデータをアップロード
+            </Button>
+            
+            <Button 
+              variant="outline"
+              size="lg"
+              className="px-8 py-6 text-base h-auto rounded-lg border-2 hover:bg-gray-50 dark:hover:bg-gray-800"
+              onClick={() => {
+                // Trigger literature search - could open a modal or redirect
+                console.log('Literature search clicked');
+              }}
+            >
+              📚 歯科文献を検索
+            </Button>
+          </div>
+
+          {hasPatientData && (
+            <div className="flex items-center justify-center space-x-2 text-sm text-green-600 bg-green-50 dark:bg-green-950/20 px-3 py-2 rounded-lg">
+              <FileSpreadsheet className="w-4 h-4" />
+              <span>Patient data ready</span>
+            </div>
+          )}
+        </div>
+      );
     }
+
+    // If messages exist, show conversation view (like ChatGPT chat mode)
+    return (
+      <div className="flex-1 overflow-y-auto">
+        <MessageList
+          messages={messages}
+          isLoading={isLoading}
+          className=""
+        />
+      </div>
+    );
+
   };
 
+  // Debug logging for layout
+  useEffect(() => {
+    console.log('🔍 CHAT INTERFACE DEBUG - Layout state:', {
+      hasMessages: messages.length > 0,
+      hasStartedConversation,
+      chatState,
+      className
+    });
+  }, [messages.length, hasStartedConversation, chatState, className]);
+
   return (
-    <div className={`flex flex-col h-full ${className}`}>
+    <div className={`flex flex-col h-screen ${className}`} ref={(el) => {
+      if (el) {
+        console.log('🔍 CHAT INTERFACE DEBUG - Container dimensions:', {
+          height: el.clientHeight,
+          scrollHeight: el.scrollHeight,
+          offsetHeight: el.offsetHeight
+        });
+      }
+    }}>
       {/* Error Display */}
       {error && (
         <div className="p-4 bg-red-50 dark:bg-red-950/20 border-b border-red-200 dark:border-red-800">
           <div className="flex items-center space-x-2">
             <AlertCircle className="w-4 h-4 text-red-600" />
             <span className="text-red-800 dark:text-red-200 text-sm">{error}</span>
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={clearError}
               className="ml-auto text-red-600 hover:text-red-700"
             >
@@ -319,83 +436,58 @@ export function ChatInterface({ conversationId, className = '' }: ChatInterfaceP
         </div>
       )}
 
-      {/* Patient Data Section - Collapsible when chatting */}
-      {(chatState === 'idle' || chatState === 'patient_data') && (
-        <div className="border-b bg-gray-50 dark:bg-gray-900/20 p-4">
-          <PatientDataUpload 
-            patientData={patientData}
-            isLoading={patientDataLoading}
-            error={patientDataError}
-            uploadProgress={uploadProgress}
-            uploadExcelFile={uploadExcelFile}
-            clearPatientData={clearPatientData}
-            updatePatientData={updatePatientData}
-            clearError={clearPatientDataError}
-            hasData={hasPatientData}
-            preview={preview}
-          />
-        </div>
-      )}
-
-      {/* Analysis Type Selection */}
-      {hasPatientData && chatState !== 'idle' && (
-        <div className="border-b p-4">
-          <div className="flex items-center space-x-4">
-            <span className="text-sm font-medium">Analysis Type:</span>
-            <div className="flex space-x-2">
-              {(['comprehensive', 'osa_risk', 'orthodontic'] as AnalysisType[]).map((type) => (
-                <Button
-                  key={type}
-                  variant={analysisType === type ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setAnalysisType(type)}
-                  className="text-xs"
-                >
-                  {type === 'comprehensive' && 'Comprehensive'}
-                  {type === 'osa_risk' && 'OSA Risk'}
-                  {type === 'orthodontic' && 'Orthodontic'}
-                </Button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Main Chat Area */}
-      {renderCurrentState()}
-
-      {/* Message Input */}
-      <div className="border-t">
-        <MessageInput
-          onSendMessage={handleSendMessage}
-          isLoading={isLoading}
-          disabled={!hasPatientData && chatState === 'idle'}
-          placeholder={
-            hasPatientData 
-              ? "Ask about cephalometric analysis, OSA risk, or orthodontic recommendations..." 
-              : "Upload patient data first or ask a general question..."
-          }
+      {/* Hidden Patient Data Upload - Integrated into main UI buttons */}
+      <div className="hidden">
+        <PatientDataUpload
+          patientData={patientData}
+          isLoading={patientDataLoading}
+          error={patientDataError}
+          uploadProgress={uploadProgress}
+          uploadExcelFile={uploadExcelFile}
+          clearPatientData={clearPatientData}
+          updatePatientData={updatePatientData}
+          clearError={clearPatientDataError}
+          hasData={hasPatientData}
+          preview={preview}
         />
       </div>
 
-      {/* Additional Analysis Results */}
-      {chatState === 'chatting' && (
-        <div className="border-t max-h-60 overflow-y-auto">
-          {/* Meta Analysis Results */}
-          {messages.length > 0 && messages[messages.length - 1].meta_analysis_results && (
-            <MetaAnalysisResults 
-              results={messages[messages.length - 1].meta_analysis_results} 
-            />
-          )}
-          
-          {/* Literature References */}
-          {messages.length > 0 && messages[messages.length - 1].literature_references && (
-            <LiteratureReferences 
-              references={messages[messages.length - 1].literature_references} 
-            />
-          )}
-        </div>
-      )}
+      {/* Analysis Type Selection - Hidden in new design */}
+
+      {/* Main Chat Area - Scrollable */}
+      <div className="flex-1 min-h-0 overflow-hidden" ref={(el) => {
+        if (el) {
+          console.log('🔍 CHAT INTERFACE DEBUG - Chat area dimensions:', {
+            height: el.clientHeight,
+            scrollHeight: el.scrollHeight,
+            offsetHeight: el.offsetHeight
+          });
+        }
+      }}>
+        {renderCurrentState()}
+      </div>
+
+      {/* Message Input - Fixed at bottom */}
+      <div className="flex-shrink-0 border-t bg-white dark:bg-gray-900" ref={(el) => {
+        if (el) {
+          console.log('🔍 CHAT INTERFACE DEBUG - Input area dimensions:', {
+            height: el.clientHeight,
+            scrollHeight: el.scrollHeight,
+            offsetHeight: el.offsetHeight
+          });
+        }
+      }}>
+        <MessageInput
+          onSendMessage={handleSendMessage}
+          isLoading={isLoading}
+          disabled={false}
+          placeholder="質問してみましょう"
+          useResearch={useResearch}
+          onResearchToggle={setUseResearch}
+          showResearchToggle={true}
+        />
+      </div>
+
 
       {/* Footer Actions */}
       <div className="border-t p-2 flex justify-between items-center text-xs text-gray-500">

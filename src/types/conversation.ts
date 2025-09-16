@@ -151,13 +151,36 @@ export interface IntelligentChatRequest {
   conversation_id?: string;
   patient_data?: PatientData | null;
   previous_response_id?: string;
+  session_id?: string;
+  added_literature?: LiteratureReference[];
+  use_research?: boolean; // Research mode flag for RAG Pipeline
+  recent_history?: Array<{
+    role: 'user' | 'assistant';
+    content: string;
+    timestamp?: string;
+  }>; // 前端发送最近5-10条对话，确保局部上下文
 }
 
-// Intelligent chat response
+// Intelligent chat response (matches backend IntelligentChatResponse)
 export interface IntelligentChatResponse {
   conversation_id: string;
   response: string;
-  literature_references?: LiteratureReference[];
+  response_id: string;
+  usage?: Record<string, any>;
+  evidence_data?: {
+    search_query?: string;
+    literature_references?: Array<{
+      id: number;
+      title: string;
+      authors: string;
+      year: string;
+      source: string;
+      link?: string;
+    }>;
+  };
+  search_executed: boolean;
+  timestamp: string;
+  literature_references?: LiteratureReference[]; // Legacy field for backward compatibility
 }
 
 // Patient demographic data
@@ -178,6 +201,8 @@ export interface RagChatAnalyzeRequest {
   include_meta_analysis: boolean;
   include_rag_search: boolean;
   patient_data?: PatientData;
+  session_id?: string;
+  added_literature?: LiteratureReference[];
 }
 
 // RAG chat analyze response
@@ -185,19 +210,36 @@ export interface RagChatAnalyzeResponse {
   conversation_id: string;
   response: string;
   meta_analysis_results?: any[];
-  literature_references?: LiteratureReference[];
+  literature_references?: LiteratureReference[]; // 向后兼容字段
+  evidence_data?: {
+    search_query?: string;
+    literature_references?: Array<{
+      id: number;
+      title: string;
+      authors: string;
+      year: string;
+      source: string;
+      link?: string;
+    }>;
+  };
+  timestamp: string;
 }
 
 // Literature reference structure
 export interface LiteratureReference {
-  id: string;
+  id?: string;
+  doc_uid: string;
   title: string;
-  authors: string;
-  journal: string;
-  year: number;
+  authors: string[] | string;
+  journal?: string;
+  year?: number;
   doi?: string;
   pmid?: string;
+  citations?: number;
   relevance_score?: number;
+  match_type: string;
+  document_source: 'local' | 'pubmed';
+  content_preview?: string;
   excerpt?: string;
 }
 

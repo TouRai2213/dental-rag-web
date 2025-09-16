@@ -36,7 +36,6 @@ export function usePatientData(): UsePatientDataReturn {
    * Upload and parse Excel file with patient data
    */
   const uploadExcelFile = useCallback(async (file: File) => {
-    console.log('[usePatientData] uploadExcelFile called with:', file.name);
     setIsLoading(true);
     setError(null);
     setUploadProgress(0);
@@ -51,24 +50,23 @@ export function usePatientData(): UsePatientDataReturn {
       setUploadProgress(25);
 
       // Parse Excel file locally
-      console.log('[usePatientData] Parsing Excel file locally...');
       const parsedData = await parseExcelPatientData(file);
-      console.log('[usePatientData] Parsed data:', parsedData);
       setUploadProgress(75);
 
       // Optional: Send to backend for processing/validation
       let finalData = parsedData;
       try {
-        console.log('[usePatientData] Sending to backend...');
+        console.log('[usePatientData] Calling backend API...');
         const backendResponse = await conversationApi.uploadExcelPatientData(file);
-        
+        console.log('[usePatientData] Backend response:', backendResponse);
+
         // Use backend response if available, otherwise use local parsing
         if (backendResponse.success && backendResponse.patient_data) {
-          console.log('[usePatientData] Using backend response');
+          console.log('[usePatientData] Using backend parsed data');
           finalData = backendResponse.patient_data;
           setPatientData(backendResponse.patient_data);
         } else {
-          console.log('[usePatientData] Using local parsing (backend returned no data)');
+          console.log('[usePatientData] Backend response not successful, using local parsing');
           setPatientData(parsedData);
         }
       } catch (backendError) {
@@ -78,11 +76,6 @@ export function usePatientData(): UsePatientDataReturn {
       }
 
       setUploadProgress(100);
-      console.log('[usePatientData] Patient data set successfully:', {
-        parsedData,
-        finalData,
-        measurementCount: finalData ? Object.keys(finalData.measurements || {}).length : 0
-      });
       
       // Reset progress after a short delay
       setTimeout(() => setUploadProgress(0), 1000);
@@ -120,16 +113,6 @@ export function usePatientData(): UsePatientDataReturn {
     setError(null);
   }, []);
 
-  // Debug: Track patientData state changes
-  React.useEffect(() => {
-    console.log('[usePatientData] patientData state changed:', {
-      patientData,
-      hasData: patientData !== null,
-      name: patientData?.name,
-      age: patientData?.age,
-      measurementCount: patientData ? Object.keys(patientData.measurements || {}).length : 0
-    });
-  }, [patientData]);
 
   // Computed values
   const hasData = patientData !== null;

@@ -144,3 +144,52 @@ bundle-analyzer-report.html
 /training_data/
 *.pkl
 *.model
+
+# ============================================
+# Parent Directory Files (不推送外层目录文件)
+# ============================================
+# Python scripts from parent directory
+*.py
+!backend/**/*.py
+!src/**/*.py
+
+# Other project directories
+dental-rag-web/
+dental_rag/
+scimago_literature/
+orthodontic_extraction/
+prosthodontic_extraction/
+local_data/
+test_data/
+mean&SD/
+data/
+venv/
+__pycache__/
+project_process/
+context/
+ccpm/
+agents/
+commands/
+epics/
+prds/
+rules/
+scripts/
+
+# Data files
+*.csv
+*.xlsx
+*.xls
+*.json
+*.jsonl
+*.sql
+*.md
+!README.md
+!CLAUDE.md
+!ARCHITECTURE.md
+!docs/**/*.md
+
+# Temporary and backup files
+*.backup
+*.bak
+*のコピー*
+*copy*

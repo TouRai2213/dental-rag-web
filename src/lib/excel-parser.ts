@@ -44,17 +44,18 @@ export async function parseExcelPatientData(file: File): Promise<PatientData> {
         }
 
         const workbook = XLSX.read(data, { type: 'array' });
-        
-        // Look for Polygon worksheet
-        const polygonSheetName = findPolygonWorksheet(workbook);
-        if (!polygonSheetName) {
-          throw new Error('Polygon worksheet not found. Please ensure your Excel file contains a "Polygon" worksheet.');
+
+        // Use the first available worksheet (don't require specific name)
+        const sheetNames = workbook.SheetNames;
+        if (!sheetNames || sheetNames.length === 0) {
+          throw new Error('No worksheets found in Excel file');
         }
 
-        const worksheet = workbook.Sheets[polygonSheetName];
-        const rawData = XLSX.utils.sheet_to_json<PolygonRowData>(worksheet, { 
-          header: 1, 
-          defval: '' 
+        const firstSheetName = sheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const rawData = XLSX.utils.sheet_to_json<PolygonRowData>(worksheet, {
+          header: 1,
+          defval: ''
         });
 
         if (!rawData || rawData.length === 0) {
@@ -77,25 +78,6 @@ export async function parseExcelPatientData(file: File): Promise<PatientData> {
   });
 }
 
-/**
- * Find the Polygon worksheet in the workbook
- * Looks for exact match or case-insensitive match
- */
-function findPolygonWorksheet(workbook: XLSX.WorkBook): string | null {
-  const sheetNames = workbook.SheetNames;
-  
-  // First try exact match
-  if (sheetNames.includes('Polygon')) {
-    return 'Polygon';
-  }
-  
-  // Try case-insensitive match
-  const polygonSheet = sheetNames.find(name => 
-    name.toLowerCase() === 'polygon'
-  );
-  
-  return polygonSheet || null;
-}
 
 /**
  * Extract patient data from the parsed worksheet data
@@ -112,7 +94,7 @@ function extractPatientData(rawData: PolygonRowData[]): PatientData {
   }
 
   const patientInfo = extractPatientInfo(patientInfoRow);
-  
+
   // Extract measurements starting from row 4 (skip rows 0-3 which are headers/metadata)
   const measurementRows = rawData.slice(4);
   const { measurements, clinical_significance } = extractMeasurements(measurementRows);
@@ -121,7 +103,7 @@ function extractPatientData(rawData: PolygonRowData[]): PatientData {
     ...patientInfo,
     measurements,
     clinical_significance,
-    ethnicity: 'japanese', // Default assumption for Polygon format files
+    ethnicity: 'japanese', // Default assumption for patient data files
   };
 }
 
@@ -189,7 +171,7 @@ function extractMeasurements(rows: PolygonRowData[]): {
     }
 
     measurements[measurementName] = patientValue;
-    
+
     if (clinicalMeaning) {
       clinical_significance[measurementName] = clinicalMeaning;
     }

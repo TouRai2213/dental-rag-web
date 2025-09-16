@@ -8,7 +8,7 @@ import { LoadingSpinner } from "@/components/loading-spinner"
 
 function LoginContent() {
   const searchParams = useSearchParams()
-  const callbackUrl = searchParams.get("callbackUrl") || "/chat"
+  const callbackUrl = searchParams.get("callbackUrl") || "/"
   const message = searchParams.get("message")
 
   return (

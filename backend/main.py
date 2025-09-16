@@ -5,11 +5,13 @@ Database Setup & Backend Foundation with t_evaluation table integration
 import os
 import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi import FastAPI, HTTPException, Depends, status, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from sqlalchemy.orm import Session
 from typing import List
+from urllib.parse import unquote
+from pathlib import Path
 
 from database import init_database, get_db_session, health_check
 from models import (
@@ -107,7 +109,8 @@ async def create_chat_message(
             ai_response=message.ai_response,
             model_used=message.model_used,
             input_tokens=message.input_tokens,
-            output_tokens=message.output_tokens
+            output_tokens=message.output_tokens,
+            response_data=message.response_data
         )
         
         db.add(db_message)
@@ -150,6 +153,41 @@ async def get_chat_messages(
             detail="Failed to fetch chat messages"
         )
 
+@app.delete("/api/chat/messages/{session_id}")
+async def delete_chat_messages(
+    session_id: str,
+    account_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Delete all chat messages for a conversation session
+    """
+    try:
+        # Delete all messages with the given session_id and account_id
+        deleted_count = db.query(TEvaluation).filter(
+            TEvaluation.session_id == session_id,
+            TEvaluation.account_id == account_id,
+            TEvaluation.api_type == APIType.CHAT
+        ).delete()
+        
+        db.commit()
+        
+        logger.info(f"Deleted {deleted_count} messages for session {session_id}")
+        
+        return {
+            "success": True,
+            "deleted_count": deleted_count,
+            "message": f"Deleted {deleted_count} messages from conversation"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error deleting chat messages: {e}")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete chat messages"
+        )
+
 @app.get("/api/conversations", response_model=ConversationListResponse)
 async def get_conversations(
     account_id: str,
@@ -165,7 +203,29 @@ async def get_conversations(
         
         offset = (page - 1) * page_size
         
-        # Get conversation summaries
+        # Get conversation summaries with first message
+        # Use a subquery to get the first message for each session
+        first_message_subquery = db.query(
+            TEvaluation.session_id,
+            func.min(TEvaluation.created_at).label('min_created_at')
+        ).filter(
+            TEvaluation.account_id == account_id,
+            TEvaluation.api_type == APIType.CHAT
+        ).group_by(TEvaluation.session_id).subquery()
+        
+        # Get the actual first message by joining with the subquery
+        first_messages = db.query(
+            TEvaluation.session_id,
+            TEvaluation.user_message.label('first_user_message')
+        ).join(
+            first_message_subquery,
+            (TEvaluation.session_id == first_message_subquery.c.session_id) &
+            (TEvaluation.created_at == first_message_subquery.c.min_created_at)
+        ).filter(
+            TEvaluation.account_id == account_id,
+            TEvaluation.api_type == APIType.CHAT
+        ).subquery()
+        
         conversations_query = db.query(
             TEvaluation.session_id,
             TEvaluation.account_id,
@@ -173,12 +233,18 @@ async def get_conversations(
             func.min(TEvaluation.created_at).label('first_message_at'),
             func.max(TEvaluation.created_at).label('last_message_at'),
             func.sum(TEvaluation.input_tokens).label('total_input_tokens'),
-            func.sum(TEvaluation.output_tokens).label('total_output_tokens')
+            func.sum(TEvaluation.output_tokens).label('total_output_tokens'),
+            first_messages.c.first_user_message
+        ).outerjoin(
+            first_messages, 
+            TEvaluation.session_id == first_messages.c.session_id
         ).filter(
             TEvaluation.account_id == account_id,
             TEvaluation.api_type == APIType.CHAT
         ).group_by(
-            TEvaluation.session_id, TEvaluation.account_id
+            TEvaluation.session_id, 
+            TEvaluation.account_id,
+            first_messages.c.first_user_message
         ).order_by(
             func.max(TEvaluation.created_at).desc()
         ).offset(offset).limit(page_size)
@@ -200,7 +266,8 @@ async def get_conversations(
                 first_message_at=conv.first_message_at,
                 last_message_at=conv.last_message_at,
                 total_input_tokens=conv.total_input_tokens,
-                total_output_tokens=conv.total_output_tokens
+                total_output_tokens=conv.total_output_tokens,
+                first_user_message=conv.first_user_message
             ) for conv in conversations
         ]
         
@@ -216,6 +283,78 @@ async def get_conversations(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to fetch conversations"
+        )
+
+@app.get("/api/chat/search")
+async def search_chat_messages(
+    account_id: str,
+    query: str,
+    limit: int = 50,
+    db: Session = Depends(get_db)
+):
+    """
+    Search chat messages globally across all conversations
+    """
+    try:
+        if not query.strip():
+            return {
+                "results": [],
+                "total_count": 0,
+                "query": query
+            }
+        
+        # Search in both user messages and AI responses
+        search_term = f"%{query}%"
+        
+        # Query messages that contain the search term
+        messages = db.query(TEvaluation).filter(
+            TEvaluation.account_id == account_id,
+            TEvaluation.api_type == APIType.CHAT,
+            (
+                TEvaluation.user_message.ilike(search_term) |
+                TEvaluation.ai_response.ilike(search_term)
+            )
+        ).order_by(TEvaluation.created_at.desc()).limit(limit).all()
+        
+        # Format results with conversation context
+        results = []
+        for msg in messages:
+            # Get conversation summary for context
+            first_message = db.query(TEvaluation).filter(
+                TEvaluation.session_id == msg.session_id,
+                TEvaluation.account_id == account_id,
+                TEvaluation.api_type == APIType.CHAT
+            ).order_by(TEvaluation.created_at.asc()).first()
+            
+            result = {
+                "message_id": msg.id,
+                "session_id": msg.session_id,
+                "user_message": msg.user_message,
+                "ai_response": msg.ai_response,
+                "created_at": msg.created_at,
+                "conversation_title": first_message.user_message[:50] if first_message and first_message.user_message else "Untitled Conversation",
+                "match_in": []
+            }
+            
+            # Determine where the match was found
+            if msg.user_message and query.lower() in msg.user_message.lower():
+                result["match_in"].append("user_message")
+            if msg.ai_response and query.lower() in msg.ai_response.lower():
+                result["match_in"].append("ai_response")
+            
+            results.append(result)
+        
+        return {
+            "results": results,
+            "total_count": len(results),
+            "query": query
+        }
+        
+    except Exception as e:
+        logger.error(f"Error searching chat messages: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to search chat messages"
         )
 
 # Generic t_evaluation endpoints
@@ -283,6 +422,7 @@ async def validation_exception_handler(request, exc):
             "errors": exc.errors()
         }
     )
+
 
 if __name__ == "__main__":
     import uvicorn

@@ -6,6 +6,32 @@
 import { getSession } from 'next-auth/react';
 
 /**
+ * Global session cache to prevent excessive polling
+ */
+let globalSessionCache: { session: any, expires: number } | null = null;
+
+/**
+ * Get cached session with longer cache duration to reduce polling
+ */
+async function getCachedSession(): Promise<any> {
+  const now = Date.now();
+  
+  // Use cached session if available and not expired (15 minute cache)
+  if (globalSessionCache && now < globalSessionCache.expires) {
+    return globalSessionCache.session;
+  }
+  
+  // Fetch new session and cache it
+  const session = await getSession();
+  globalSessionCache = {
+    session,
+    expires: now + 900000, // 15 minutes
+  };
+  
+  return session;
+}
+
+/**
  * API configuration
  */
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -29,7 +55,11 @@ export class ApiClientError extends Error {
   public readonly field?: string;
 
   constructor(error: ApiError) {
-    super(error.message);
+    // Ensure message is always a string
+    const message = typeof error.message === 'string' 
+      ? error.message 
+      : JSON.stringify(error.message);
+    super(message);
     this.name = 'ApiClientError';
     this.status = error.status;
     this.code = error.code;
@@ -63,10 +93,10 @@ class ApiClient {
   }
 
   /**
-   * Get authentication headers from NextAuth session
+   * Get authentication headers from cached session
    */
   private async getAuthHeaders(): Promise<Record<string, string>> {
-    const session = await getSession();
+    const session = await getCachedSession();
     const headers: Record<string, string> = {};
 
     if (session?.user?.email) {
@@ -101,8 +131,24 @@ class ApiClient {
     }
 
     if (!response.ok) {
+      // Extract error message from response data
+      let errorMessage: string;
+      if (typeof responseData?.message === 'string') {
+        errorMessage = responseData.message;
+      } else if (typeof responseData?.error === 'string') {
+        errorMessage = responseData.error;
+      } else if (typeof responseData?.detail === 'string') {
+        errorMessage = responseData.detail;
+      } else if (typeof responseData === 'string') {
+        errorMessage = responseData;
+      } else if (responseData) {
+        errorMessage = JSON.stringify(responseData);
+      } else {
+        errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      }
+
       const error: ApiError = {
-        message: responseData?.message || responseData || `HTTP ${response.status}: ${response.statusText}`,
+        message: errorMessage,
         code: responseData?.code,
         status: response.status,
         field: responseData?.field,
@@ -191,16 +237,27 @@ class ApiClient {
   }
 
   /**
-   * Get current account ID from session
+   * Get current account ID from cached session
    */
   public async getAccountId(): Promise<string | null> {
-    const session = await getSession();
+    const session = await getCachedSession();
     return session?.user?.email || null;
+  }
+
+  /**
+   * Clear global session cache (useful for logout or session changes)
+   */
+  public clearSessionCache(): void {
+    globalSessionCache = null;
   }
 }
 
-// Export singleton instance
+// Export singleton instance for remote API calls
 export const apiClient = new ApiClient();
+
+// Export local client instance for Next.js API routes (conversation management)
+// Use a fixed URL to avoid window object issues and infinite loops
+export const localApiClient = new ApiClient('http://localhost:3000');
 
 // Export class for testing or custom instances
 export { ApiClient };

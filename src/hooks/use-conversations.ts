@@ -45,6 +45,13 @@ export function useConversations(): UseConversationsReturn {
    * Handle and set errors
    */
   const handleError = useCallback((err: any, context?: string) => {
+    // Silently handle 404 errors (API not implemented yet)
+    if (err?.status === 404) {
+      console.log('API endpoint not found - backend may not be running');
+      // Don't set error state for 404s to avoid showing error to user
+      return;
+    }
+    
     console.error(`Conversation error${context ? ` in ${context}` : ''}:`, err);
     
     const errorMessage = err?.message || 'An unexpected error occurred';

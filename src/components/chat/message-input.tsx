@@ -7,20 +7,24 @@
 'use client';
 
 import React, { useState, useRef, useCallback, KeyboardEvent } from 'react';
-import { Send, FileSpreadsheet, Paperclip } from 'lucide-react';
+import { Send, FileSpreadsheet, Paperclip, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { LoadingSpinner } from '@/components/loading-spinner';
 
 interface MessageInputProps {
-  onSendMessage: (message: string) => Promise<void>;
+  onSendMessage: (message: string, useResearch?: boolean) => Promise<void>;
   isLoading?: boolean;
   disabled?: boolean;
   placeholder?: string;
   maxLength?: number;
   showFileUpload?: boolean;
   className?: string;
+  // Research mode props
+  useResearch?: boolean;
+  onResearchToggle?: (enabled: boolean) => void;
+  showResearchToggle?: boolean;
 }
 
 export function MessageInput({
@@ -30,7 +34,11 @@ export function MessageInput({
   placeholder = "Type your message here...",
   maxLength = 2000,
   showFileUpload = false,
-  className = ''
+  className = '',
+  // Research mode props
+  useResearch = false,
+  onResearchToggle,
+  showResearchToggle = true
 }: MessageInputProps) {
   const [message, setMessage] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
@@ -64,7 +72,7 @@ export function MessageInput({
     if (!trimmedMessage || isLoading || disabled) return;
 
     try {
-      await onSendMessage(trimmedMessage);
+      await onSendMessage(trimmedMessage, useResearch);
       setMessage('');
       // Reset textarea height
       if (textareaRef.current) {
@@ -74,7 +82,7 @@ export function MessageInput({
     } catch (error) {
       console.error('Failed to send message:', error);
     }
-  }, [message, onSendMessage, isLoading, disabled]);
+  }, [message, onSendMessage, isLoading, disabled, useResearch]);
 
   // Handle keyboard shortcuts
   const handleKeyDown = useCallback((e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -107,7 +115,26 @@ export function MessageInput({
   const isNearLimit = remainingChars < 100;
 
   return (
-    <div className={`p-4 ${className}`}>
+    <div className={`p-4 ${className}`} ref={(el) => {
+      if (el) {
+        console.log('🔍 MESSAGE INPUT DEBUG - Container dimensions:', {
+          height: el.clientHeight,
+          scrollHeight: el.scrollHeight,
+          offsetHeight: el.offsetHeight,
+          boundingRect: el.getBoundingClientRect()
+        });
+      }
+    }}>
+      {/* Research Mode Status - Fixed height container to prevent layout shift */}
+      <div className="h-8 flex items-center justify-center mb-3">
+        {useResearch && (
+          <div className="flex items-center space-x-2 px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full text-xs">
+            <BookOpen className="w-3 h-3" />
+            <span>Research Mode Active - Will search literature before answering</span>
+          </div>
+        )}
+      </div>
+
       <Card className={`relative ${isExpanded ? 'p-4' : 'p-3'} transition-all duration-200`}>
         <div className="flex items-end space-x-3">
           {/* File Upload Button (Optional) */}
@@ -196,13 +223,35 @@ export function MessageInput({
         )}
       </Card>
 
-      {/* Quick Actions (when not expanded) */}
+      {/* Quick Actions (when not expanded) - Fixed position with min height */}
       {!isExpanded && !disabled && (
-        <div className="flex items-center justify-between mt-2 px-1">
+        <div className="flex items-center justify-between mt-2 px-1 min-h-20 py-4">
           <div className="flex items-center space-x-3 text-xs text-gray-500">
             <span>Enter to send • Shift+Enter for new line</span>
+            {useResearch && (
+              <Badge variant="secondary" className="text-xs">
+                <BookOpen className="w-3 h-3 mr-1" />
+                Research Mode
+              </Badge>
+            )}
           </div>
           <div className="flex items-center space-x-2">
+            {showResearchToggle && onResearchToggle && (
+              <Button
+                variant={useResearch ? "default" : "ghost"}
+                size="sm"
+                onClick={() => onResearchToggle(!useResearch)}
+                className={`h-6 text-xs px-2 ${
+                  useResearch
+                    ? 'bg-blue-600 text-white hover:bg-blue-700'
+                    : 'hover:bg-blue-50 hover:text-blue-600'
+                }`}
+                title={`${useResearch ? 'Disable' : 'Enable'} Research Mode - Search literature before answering`}
+              >
+                <BookOpen className="w-3 h-3 mr-1" />
+                Research
+              </Button>
+            )}
             {showFileUpload && (
               <Button
                 variant="ghost"
@@ -217,6 +266,9 @@ export function MessageInput({
           </div>
         </div>
       )}
+
+      {/* Additional spacing to ensure buttons are always visible */}
+      <div className="h-32"></div>
     </div>
   );
 }

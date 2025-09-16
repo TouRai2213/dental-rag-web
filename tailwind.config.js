@@ -11,6 +11,7 @@ module.exports = {
       fontFamily: {
         sans: ['var(--font-geist-sans)', 'system-ui', 'sans-serif'],
         mono: ['var(--font-geist-mono)', 'monospace'],
+        roboto: ['Roboto', 'sans-serif'],
       },
       colors: {
         // Dental-specific brand colors

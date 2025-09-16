@@ -10,7 +10,11 @@ interface ClientSessionProviderProps {
 
 export function ClientSessionProvider({ children, session }: ClientSessionProviderProps) {
   return (
-    <SessionProvider session={session}>
+    <SessionProvider 
+      session={session}
+      refetchInterval={0}
+      refetchOnWindowFocus={false}
+    >
       {children}
     </SessionProvider>
   )

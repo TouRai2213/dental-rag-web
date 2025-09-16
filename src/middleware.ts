@@ -6,7 +6,7 @@ export default auth((req) => {
   const isLoggedIn = !!req.auth
   
   // Define protected routes
-  const protectedRoutes = ['/chat', '/documents', '/admin']
+  const protectedRoutes = ['/documents', '/admin']
   const adminRoutes = ['/admin']
   
   // Check if current route is protected
@@ -33,7 +33,7 @@ export default auth((req) => {
   
   // Redirect authenticated users away from auth pages
   if (isLoggedIn && nextUrl.pathname.startsWith('/login')) {
-    return NextResponse.redirect(new URL('/chat', nextUrl.origin))
+    return NextResponse.redirect(new URL('/', nextUrl.origin))
   }
   
   return NextResponse.next()

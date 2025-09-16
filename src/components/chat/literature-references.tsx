@@ -45,8 +45,16 @@ function ReferenceItem({ reference, index, onViewDetail }: ReferenceItemProps) {
     return 'bg-red-100 text-red-700';
   };
 
-  const formatAuthors = (authors: string | undefined | null) => {
+  const formatAuthors = (authors: string | string[] | undefined | null) => {
     if (!authors) return 'Unknown Authors';
+    
+    // Handle array of authors
+    if (Array.isArray(authors)) {
+      if (authors.length <= 2) return authors.join(', ');
+      return `${authors[0]} et al.`;
+    }
+    
+    // Handle string of authors
     const authorList = authors.split(',').map(a => a.trim());
     if (authorList.length <= 2) return authors;
     return `${authorList[0]} et al.`;
@@ -70,7 +78,7 @@ function ReferenceItem({ reference, index, onViewDetail }: ReferenceItemProps) {
         <div className="flex items-start justify-between">
           <div className="flex items-center space-x-2">
             <Badge variant="outline" className="text-xs">
-              #{index + 1}
+              #{reference.id || (index + 1)}
             </Badge>
             {reference.relevance_score && (
               <Badge 
@@ -107,18 +115,8 @@ function ReferenceItem({ reference, index, onViewDetail }: ReferenceItemProps) {
         {/* Actions */}
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            {reference.doi && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleExternalLink(`https://doi.org/${reference.doi}`)}
-                className="h-6 text-xs px-2"
-              >
-                <ExternalLink className="w-3 h-3 mr-1" />
-                DOI
-              </Button>
-            )}
-            {reference.pmid && (
+            {/* Show PMID button only for PubMed sources */}
+            {reference.document_source === 'pubmed' && reference.pmid && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -131,25 +129,30 @@ function ReferenceItem({ reference, index, onViewDetail }: ReferenceItemProps) {
             )}
           </div>
           <div className="flex items-center space-x-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onViewDetail(reference)}
-              className="h-6 text-xs px-2"
-            >
-              <Eye className="w-3 h-3 mr-1" />
-              Details
-            </Button>
-            {reference.id && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handlePdfDownload}
-                className="h-6 text-xs px-2"
-              >
-                <Download className="w-3 h-3 mr-1" />
-                PDF
-              </Button>
+            {/* Show Details and PDF buttons only for local sources */}
+            {reference.document_source === 'local' && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onViewDetail(reference)}
+                  className="h-6 text-xs px-2"
+                >
+                  <Eye className="w-3 h-3 mr-1" />
+                  Details
+                </Button>
+                {reference.id && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handlePdfDownload}
+                    className="h-6 text-xs px-2"
+                  >
+                    <Download className="w-3 h-3 mr-1" />
+                    PDF
+                  </Button>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -275,17 +278,8 @@ function LiteratureModal({ reference, detail, isLoading, onClose }: LiteratureMo
         {/* Footer */}
         <div className="flex items-center justify-between p-4 border-t bg-gray-50 dark:bg-gray-800/50">
           <div className="flex items-center space-x-2">
-            {reference.doi && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => window.open(`https://doi.org/${reference.doi}`, '_blank')}
-              >
-                <ExternalLink className="w-4 h-4 mr-1" />
-                DOI
-              </Button>
-            )}
-            {reference.pmid && (
+            {/* Show PMID button only for PubMed sources */}
+            {reference.document_source === 'pubmed' && reference.pmid && (
               <Button
                 variant="outline"
                 size="sm"
@@ -297,13 +291,16 @@ function LiteratureModal({ reference, detail, isLoading, onClose }: LiteratureMo
             )}
           </div>
           <div className="flex items-center space-x-2">
-            {reference.id && (
+            {/* Show PDF button only for local sources */}
+            {reference.document_source === 'local' && reference.id && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  const pdfUrl = conversationApi.getLiteraturePdfUrl(reference.id);
-                  window.open(pdfUrl, '_blank');
+                  if (reference.id) {
+                    const pdfUrl = conversationApi.getLiteraturePdfUrl(reference.id);
+                    window.open(pdfUrl, '_blank');
+                  }
                 }}
               >
                 <Download className="w-4 h-4 mr-1" />
@@ -329,6 +326,7 @@ export function LiteratureReferences({ references, className = '' }: LiteratureR
   const [literatureDetail, setLiteratureDetail] = useState<LiteratureDetailResponse | null>(null);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
 
+
   if (!references || references.length === 0) {
     return null;
   }
@@ -340,8 +338,10 @@ export function LiteratureReferences({ references, className = '' }: LiteratureR
     return scoreB - scoreA;
   });
 
-  const displayReferences = isExpanded ? sortedReferences : sortedReferences.slice(0, 3);
-  const hasMore = references.length > 3;
+  // 显示所有文献（包括正文中未引用的）
+  const displayReferences = sortedReferences;
+  const hasMore = false;
+
 
   const handleViewDetail = async (reference: LiteratureReference) => {
     setSelectedReference(reference);
@@ -367,7 +367,7 @@ export function LiteratureReferences({ references, className = '' }: LiteratureR
 
   return (
     <>
-      <div className={`p-4 border-t bg-gray-50 dark:bg-gray-900/20 ${className}`}>
+      <div className={`p-4 border-t ${className}`}>
         <div className="space-y-4">
           {/* Header */}
           <div className="flex items-center justify-between">
@@ -378,26 +378,7 @@ export function LiteratureReferences({ references, className = '' }: LiteratureR
                 {references.length} citations
               </Badge>
             </div>
-            {hasMore && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsExpanded(!isExpanded)}
-                className="text-xs"
-              >
-                {isExpanded ? (
-                  <>
-                    <ChevronDown className="w-4 h-4 mr-1" />
-                    Show Less
-                  </>
-                ) : (
-                  <>
-                    <ChevronRight className="w-4 h-4 mr-1" />
-                    Show All ({references.length})
-                  </>
-                )}
-              </Button>
-            )}
+            {/* 展开/收起按钮已移除 - 现在默认显示所有文献 */}
           </div>
 
           {/* References Grid */}
@@ -412,18 +393,7 @@ export function LiteratureReferences({ references, className = '' }: LiteratureR
             ))}
           </div>
 
-          {!isExpanded && hasMore && (
-            <div className="text-center">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsExpanded(true)}
-                className="text-xs"
-              >
-                Show {references.length - 3} more references
-              </Button>
-            </div>
-          )}
+          {/* "Show more" 按钮已移除 - 现在默认显示所有文献 */}
         </div>
       </div>
 

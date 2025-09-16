@@ -3,7 +3,7 @@
  * CRUD operations for chat conversations using the t_evaluation table
  */
 
-import { apiClient } from './client';
+import { apiClient, localApiClient } from './client';
 import type {
   Conversation,
   ConversationSummary,
@@ -40,6 +40,8 @@ const ENDPOINTS = {
   uploadExcel: '/api/chat/upload-excel',
   literatureDetail: (documentId: string) => `/api/literature/detail/${documentId}`,
   literaturePdf: (documentId: string) => `/api/literature/pdf/${documentId}`,
+  // Search endpoints
+  searchMessages: '/api/chat/search',
 } as const;
 
 /**
@@ -57,7 +59,7 @@ export class ConversationApi {
    * Get list of conversations for the authenticated user
    */
   async listConversations(params: Omit<ListConversationsRequest, 'account_id'> = {}): Promise<ConversationSummary[]> {
-    const accountId = await apiClient.getAccountId();
+    const accountId = await localApiClient.getAccountId();
     if (!accountId) {
       throw new Error('User not authenticated');
     }
@@ -67,16 +69,25 @@ export class ConversationApi {
     if (params.offset) queryParams.append('offset', params.offset.toString());
 
     const endpoint = `${ENDPOINTS.conversations}?${queryParams.toString()}`;
-    const response = await apiClient.get<ListConversationsResponse>(endpoint);
     
-    return response.conversations;
+    try {
+      const response = await localApiClient.get<ListConversationsResponse>(endpoint);
+      return response.conversations;
+    } catch (error: any) {
+      // If API is not available (404), return empty array
+      if (error?.status === 404) {
+        console.log('Conversations API not available - backend may not be running');
+        return [];
+      }
+      throw error;
+    }
   }
 
   /**
    * Get a specific conversation with all messages
    */
   async getConversation(sessionId: string): Promise<Conversation> {
-    const response = await apiClient.get<GetConversationResponse>(
+    const response = await localApiClient.get<GetConversationResponse>(
       ENDPOINTS.conversation(sessionId)
     );
     
@@ -113,7 +124,7 @@ export class ConversationApi {
    * Delete an entire conversation (all messages with the same session_id)
    */
   async deleteConversation(sessionId: string): Promise<void> {
-    await apiClient.delete<DeleteConversationResponse>(
+    await localApiClient.delete<DeleteConversationResponse>(
       ENDPOINTS.conversation(sessionId)
     );
   }
@@ -249,6 +260,37 @@ export class ConversationApi {
     };
 
     return await this.analyzeWithRag(request);
+  }
+
+  /**
+   * Search messages across all conversations
+   * Returns messages that contain the search query
+   */
+  async searchMessages(query: string, limit: number = 50): Promise<{
+    results: Array<{
+      message_id: number;
+      session_id: string;
+      user_message: string;
+      ai_response: string;
+      created_at: string;
+      conversation_title: string;
+      match_in: string[];
+    }>;
+    total_count: number;
+    query: string;
+  }> {
+    const accountId = await localApiClient.getAccountId();
+    if (!accountId) {
+      throw new Error('User not authenticated');
+    }
+
+    const params = new URLSearchParams({
+      account_id: accountId,
+      query: query,
+      limit: limit.toString()
+    });
+
+    return await localApiClient.get(`${ENDPOINTS.searchMessages}?${params.toString()}`);
   }
 }
 

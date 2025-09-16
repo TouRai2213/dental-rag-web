@@ -3,7 +3,7 @@ Database models for Dental RAG System
 SQLAlchemy models for t_evaluation table and conversation management
 """
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Dict
 from sqlalchemy import Column, Integer, String, Text, DateTime, Index
 from sqlalchemy.sql import func
 from pydantic import BaseModel, Field
@@ -63,7 +63,7 @@ class TEvaluation(Base):
 class ChatMessageCreate(BaseModel):
     """Model for creating a new chat message"""
     model_config = {"protected_namespaces": ()}
-    
+
     account_id: str = Field(..., description="User account ID")
     session_id: str = Field(..., description="Conversation session ID")
     user_message: str = Field(..., description="User input message")
@@ -71,11 +71,12 @@ class ChatMessageCreate(BaseModel):
     model_used: Optional[str] = Field(None, description="AI model identifier")
     input_tokens: Optional[int] = Field(None, description="Input token count")
     output_tokens: Optional[int] = Field(None, description="Output token count")
+    response_data: Optional[str] = Field(None, description="JSON string containing literature references, meta analysis results, etc.")
 
 class ChatMessageResponse(BaseModel):
     """Model for chat message response"""
     model_config = {"protected_namespaces": (), "from_attributes": True}
-    
+
     id: int
     account_id: Optional[str]
     session_id: Optional[str]
@@ -86,6 +87,7 @@ class ChatMessageResponse(BaseModel):
     output_tokens: Optional[int]
     created_at: Optional[datetime]
     updated_at: Optional[datetime]
+    response_data: Optional[str]  # JSON string containing literature references, meta analysis results, etc.
 
 class ConversationSummary(BaseModel):
     """Model for conversation summary"""
@@ -98,6 +100,7 @@ class ConversationSummary(BaseModel):
     last_message_at: datetime
     total_input_tokens: Optional[int]
     total_output_tokens: Optional[int]
+    first_user_message: Optional[str] = None
 
 class TEvaluationCreate(BaseModel):
     """Model for creating any type of t_evaluation record"""
