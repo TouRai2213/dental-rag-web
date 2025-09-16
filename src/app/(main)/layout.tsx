@@ -1,6 +1,6 @@
 "use client"
 
-import { useAuth } from "@/hooks/use-auth"
+import { useAuth } from "@/providers/auth-provider"
 import { LoadingSpinner } from "@/components/loading-spinner"
 import { UserMenu } from "@/components/user-menu"
 
