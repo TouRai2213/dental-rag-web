@@ -353,8 +353,8 @@ function MainApplication() {
 
       // Prepare recent history (last 5-10 messages) for context
       const recentHistory = messages.slice(-10).map(msg => [
-        { role: 'user' as const, content: msg.userMessage, timestamp: msg.timestamp },
-        { role: 'assistant' as const, content: msg.aiMessage, timestamp: msg.timestamp }
+        { role: 'user' as const, content: msg.user_message, timestamp: msg.timestamp },
+        { role: 'assistant' as const, content: msg.ai_response, timestamp: msg.timestamp }
       ]).flat().filter(item => item.content); // Flatten and filter out empty content
 
       // Call the intelligent chat API with Research mode support
