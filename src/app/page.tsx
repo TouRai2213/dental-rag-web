@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Upload, Search, Plus, ArrowUp, Send, Bot, User, BookOpen } from 'lucide-react';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Sidebar } from '@/components/layout/sidebar';
@@ -43,9 +44,11 @@ export default function Home() {
       <div className="h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="max-w-md w-full space-y-8 p-8">
           <div className="text-center">
-            <img 
-              src="/dental-brain-logo.png" 
-              alt="Dental Brain" 
+            <Image
+              src="/dental-brain-logo.png"
+              alt="Dental Brain"
+              width={48}
+              height={48}
               className="h-12 w-auto mx-auto mb-6"
             />
             <h2 className="text-3xl font-extrabold text-gray-900 dark:text-gray-100">
