@@ -253,11 +253,11 @@ class ApiClient {
   }
 }
 
-// Export singleton instance for remote API calls
+// Export singleton instance for AI/RAG API calls (port 8000 - dental-rag-api)
 export const apiClient = new ApiClient();
 
-// Export local client instance for Next.js API routes (conversation management)
-// Use same origin to avoid mixed content issues
+// Export local client instance for database operations (port 8002 - epic-rag-web backend)
+// Both services are now on the same server, accessed through nginx proxy
 export const localApiClient = new ApiClient(typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8002');
 
 // Export class for testing or custom instances

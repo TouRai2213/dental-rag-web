@@ -31,9 +31,10 @@ import type {
  */
 const ENDPOINTS = {
   conversations: '/api/conversations',
-  conversation: (sessionId: string) => `/api/conversations/${sessionId}`,
-  messages: '/api/conversations/messages',
-  message: (messageId: number) => `/api/conversations/messages/${messageId}`,
+  // Use chat/messages endpoint for conversation details
+  conversation: (sessionId: string) => `/api/chat/messages/${sessionId}`,
+  messages: '/api/chat/messages',
+  message: (messageId: number) => `/api/chat/messages/${messageId}`,
   // RAG Chat API endpoints (production backend)
   intelligentChat: '/api/chat/intelligent',
   ragChatAnalyze: '/api/chat/analyze',
@@ -88,11 +89,29 @@ export class ConversationApi {
    * Get a specific conversation with all messages
    */
   async getConversation(sessionId: string): Promise<Conversation> {
-    const response = await localApiClient.get<GetConversationResponse>(
-      ENDPOINTS.conversation(sessionId)
+    const accountId = await localApiClient.getAccountId();
+    if (!accountId) {
+      throw new Error('User not authenticated');
+    }
+
+    // Call backend API directly with account_id parameter
+    const messages = await localApiClient.get<ChatMessage[]>(
+      `${ENDPOINTS.conversation(sessionId)}?account_id=${encodeURIComponent(accountId)}`
     );
-    
-    return response.conversation;
+
+    // Format as conversation object
+    const conversation: Conversation = {
+      session_id: sessionId,
+      account_id: accountId,
+      messages: messages || [],
+      created_at: messages[0]?.created_at || new Date().toISOString(),
+      updated_at: messages[messages.length - 1]?.created_at || new Date().toISOString(),
+      total_input_tokens: messages.reduce((sum, msg) => sum + (msg.input_tokens || 0), 0),
+      total_output_tokens: messages.reduce((sum, msg) => sum + (msg.output_tokens || 0), 0),
+      message_count: messages.length,
+    };
+
+    return conversation;
   }
 
   /**
@@ -105,7 +124,8 @@ export class ConversationApi {
       session_id: request.session_id || generateSessionId(),
     };
 
-    return await apiClient.post<CreateChatMessageResponse>(
+    // Use localApiClient for database operations (port 8002)
+    return await localApiClient.post<CreateChatMessageResponse>(
       ENDPOINTS.messages,
       messageData
     );
@@ -115,7 +135,8 @@ export class ConversationApi {
    * Update a chat message with AI response
    */
   async updateMessage(request: UpdateChatMessageRequest): Promise<UpdateChatMessageResponse> {
-    return await apiClient.put<UpdateChatMessageResponse>(
+    // Use localApiClient for database operations (port 8002)
+    return await localApiClient.put<UpdateChatMessageResponse>(
       ENDPOINTS.message(request.id),
       request
     );
@@ -125,8 +146,14 @@ export class ConversationApi {
    * Delete an entire conversation (all messages with the same session_id)
    */
   async deleteConversation(sessionId: string): Promise<void> {
-    await localApiClient.delete<DeleteConversationResponse>(
-      ENDPOINTS.conversation(sessionId)
+    const accountId = await localApiClient.getAccountId();
+    if (!accountId) {
+      throw new Error('User not authenticated');
+    }
+
+    // Call backend API directly with account_id parameter
+    await localApiClient.delete(
+      `${ENDPOINTS.conversation(sessionId)}?account_id=${encodeURIComponent(accountId)}`
     );
   }
 
@@ -173,7 +200,8 @@ export class ConversationApi {
     totalMessages: number;
     totalTokens: number;
   }> {
-    return await apiClient.get('/api/conversations/stats');
+    // Use localApiClient for database operations (port 8002)
+    return await localApiClient.get('/api/conversations/stats');
   }
 
   /**
