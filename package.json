@@ -29,7 +29,6 @@
     "analyze:server": "cross-env BUNDLE_ANALYZE=server next build",
     "analyze:browser": "cross-env BUNDLE_ANALYZE=browser next build",
     "pre-commit": "lint-staged",
-    "prepare": "husky install",
     "check-all": "npm run type-check && npm run lint:strict && npm run format:check && npm run test:ci",
     "fix-all": "npm run lint:fix && npm run format",
     "docker:build": "docker build -t dental-rag-web .",
